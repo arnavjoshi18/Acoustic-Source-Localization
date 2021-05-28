@@ -1,0 +1,152 @@
+# Simplified model 
+
+import tensorflow as tf
+from tensorflow import keras
+import numpy as np
+import pandas as pd
+import cmath as cm
+import math
+import random
+import sys
+
+
+np.set_printoptions(threshold = sys.maxsize)
+np.set_printoptions(suppress=True)
+
+# Generating the cross-spectral-matrices and training data
+sources = 1
+microphones = 64
+grid_length = 5              # Assume square grid
+scanning_grid = grid_length*grid_length
+training_samples = 5
+val_samples = 10
+pred_samples = 1
+frequency = 8000
+no_of_epochs = 10
+bs = 1
+
+if grid_length%2 ==0:
+  exit("grid_length must be odd number")
+
+# coordinates of scanning plane
+
+x_glob=np.linspace(-0.6,0.6,grid_length)
+y_glob=np.linspace(0.6,-0.6,grid_length)
+z_glob = 1.2
+
+#Defines the number of indepedent training same. Training samples above this number make no sense
+
+def number_independent_case(sources,scanning_grid):
+  ind_samples=1
+  for ii in range(sources):
+    ind_samples*=(scanning_grid-ii)
+  return ind_samples
+
+nb_ind = number_independent_case(sources,scanning_grid)
+if nb_ind<val_samples:
+  print("We have ",val_samples, " but have", nb_ind)
+
+
+#Sets up a distribution of the microphone array
+
+def microphone_distribution(microphones,typeMic="log_spiral"):
+  if typeMic=="log_spiral":
+    a=0.018
+    b=0.002
+    turns=5
+    micPos=np.linspace(0,turns*np.pi*2,microphones)
+    x=a*np.cos(micPos)*np.exp(b*micPos)
+    y=a*np.sin(micPos)*np.exp(b*micPos)
+  else:
+    print("not implemented")
+  return x,y
+
+
+#Set up microphone array
+
+x_mic,y_mic = microphone_distribution(microphones)
+z_mic = z_glob
+
+# Generate training data
+
+def data_gen(x_glob,y_glob,x_mic,y_mic,z_mic,grid_length,sources,microphones):
+ gt = np.zeros((grid_length, grid_length))
+ x1 = np.random.randint(0,grid_length-1,sources)
+ y1 = np.random.randint(0,grid_length-1,sources)
+ gt[y1,x1] = 1
+
+ gt = np.array(gt.reshape(scanning_grid,1,1))
+ x_source = x_glob[x1]
+ y_source = y_glob[y1]  
+ 
+ p=np.empty(microphones,dtype=np.complex_)
+
+ for i in range(microphones):
+  rs = ((x_glob[x1]-x_mic[i])**2 + (y_glob[y1]-y_mic[i])**2 + z_mic**2)**0.5
+  p[i] = np.sum(np.exp( (-2*1j*math.pi*frequency*rs)/343)/(4*math.pi*rs))
+ p_H = np.conj(p)
+ sample = np.dot(p[:,None],p_H[None,:])
+ #sample = np.real(sample)
+ sample = np.array(sample.reshape(microphones,microphones,1))
+ return sample, gt
+
+
+training_data = np.empty((training_samples,microphones,microphones,1),dtype=complex)
+gtt = np.empty((training_samples,scanning_grid,1,1), dtype=int)
+
+validation_data = np.empty((val_samples,microphones,microphones,1),dtype=complex)
+gtv = np.empty((val_samples,scanning_grid,1,1), dtype=int)
+
+pred_data = np.empty((pred_samples,microphones,microphones,1),dtype=complex)
+gtp = np.empty((pred_samples,scanning_grid,1,1), dtype=int)
+
+def training_data_gen():
+ for i in range(training_samples):
+  training_data[i],gtt[i] = data_gen(x_glob,y_glob,x_mic,y_mic,z_mic,grid_length,sources,microphones)
+ return training_data,gtt
+ 
+def val_data_gen():
+ for i in range(val_samples):
+  validation_data[i],gtv[i] = data_gen(x_glob,y_glob,x_mic,y_mic,z_mic,grid_length,sources,microphones)
+ return validation_data,gtv
+
+def pred_data_gen():
+ for i in range(pred_samples):
+  pred_data[i],gtp[i] = data_gen(x_glob,y_glob,x_mic,y_mic,z_mic,grid_length,sources,microphones)
+ return pred_data,gtp
+
+# CNN 
+
+model = tf.keras.models.Sequential([
+  tf.keras.layers.Conv2D(64, (3,3), activation='relu', input_shape=(microphones,microphones,1)),
+  tf.keras.layers.ZeroPadding2D(padding=1),
+  tf.keras.layers.Conv2D(64, (3,3), activation='relu'),
+  tf.keras.layers.ZeroPadding2D(padding=1),
+  tf.keras.layers.MaxPooling2D(2,2),
+  tf.keras.layers.Conv2D(64, (3,3), activation='relu'),
+  tf.keras.layers.ZeroPadding2D(padding=1),
+  tf.keras.layers.Conv2D(64, (3,3), activation='relu'),
+  tf.keras.layers.ZeroPadding2D(padding=1), 
+  tf.keras.layers.MaxPooling2D(2,2),                           
+  tf.keras.layers.Flatten(),
+  tf.keras.layers.Dense(128, activation='relu'),
+  tf.keras.layers.Dense(scanning_grid)
+])
+opt = keras.optimizers.Adam(learning_rate=0.001)
+model.compile(optimizer=opt, loss='mean_squared_error', metrics=['mean_squared_error'])
+model.summary()
+
+for i in range(no_of_epochs):
+  ut = training_data_gen()
+  uv = val_data_gen()
+  model.fit(ut[0],ut[1], validation_data = (uv[0],uv[1]), batch_size = bs)
+
+# Prediction
+
+up = pred_data_gen()
+z1 = model.predict(up[0])
+k1 = np.array(up[1])
+z1= np.array(z1.reshape(pred_samples,grid_length,grid_length))
+k1= np.array(k1.reshape(pred_samples,grid_length,grid_length))
+print(k1)
+print(z1)
