@@ -64,7 +64,7 @@ def data_gen(x_glob,y_glob,x_mic,y_mic,z_mic,grid_length,sources,microphones):
  y1 = np.random.randint(0,grid_length-1,sources)
  gt[y1,x1] = 1
 
- gt = np.array(gt.reshape(scanning_grid,1,1))
+ gt = np.array(gt.reshape(scanning_grid))
  x_source = x_glob[x1]
  y_source = y_glob[y1]  
  
@@ -81,13 +81,13 @@ def data_gen(x_glob,y_glob,x_mic,y_mic,z_mic,grid_length,sources,microphones):
 
 
 training_data = np.empty((training_samples,microphones,microphones,1),dtype=complex)
-gtt = np.empty((training_samples,scanning_grid,1,1), dtype=int)
+gtt = np.empty((training_samples,scanning_grid), dtype=int)
 
 validation_data = np.empty((val_samples,microphones,microphones,1),dtype=complex)
-gtv = np.empty((val_samples,scanning_grid,1,1), dtype=int)
+gtv = np.empty((val_samples,scanning_grid), dtype=int)
 
 pred_data = np.empty((pred_samples,microphones,microphones,1),dtype=complex)
-gtp = np.empty((pred_samples,scanning_grid,1,1), dtype=int)
+gtp = np.empty((pred_samples,scanning_grid), dtype=int)
 
 # Functions for training, validation and prediction data 
 
@@ -105,3 +105,6 @@ def pred_data_gen():
  for i in range(pred_samples):
   pred_data[i],gtp[i] = data_gen(x_glob,y_glob,x_mic,y_mic,z_mic,grid_length,sources,microphones)
  return pred_data,gtp
+ 
+ut = training_data_gen()
+uv = val_data_gen() 
