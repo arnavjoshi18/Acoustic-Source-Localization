@@ -1,0 +1,21 @@
+# CNN 
+
+model = models.Sequential()
+model.add(layers.Conv2D(32, (3, 3), activation='relu', input_shape=(microphones, microphones, 1)))
+model.add(layers.MaxPooling2D((2, 2)))
+model.add(layers.Conv2D(64, (3, 3), activation='relu'))
+model.add(layers.MaxPooling2D((2, 2)))
+model.add(layers.Conv2D(64, (3, 3), activation='relu'))
+model.add(layers.Flatten())
+model.add(layers.Dense(128, activation='relu'))
+model.add(layers.Dense(128, activation='relu'))
+model.add(layers.Dense(128, activation='relu'))
+model.add(layers.Dense(128, activation='relu'))
+model.add(layers.Dense(scanning_grid))
+
+
+opt = keras.optimizers.Adam(learning_rate=0.001)
+model.compile(optimizer=opt, loss='mean_squared_error', metrics=['mean_squared_error'])
+model.summary()
+
+model.fit(ut[0],ut[1], validation_data = (uv[0],uv[1]), batch_size = bs, epochs = no_of_epochs)
