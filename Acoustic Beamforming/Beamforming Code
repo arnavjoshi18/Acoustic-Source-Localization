@@ -1,0 +1,28 @@
+# Beamforming with in-built array
+
+from os import path
+import acoular
+from pylab import figure, plot, axis, imshow, colorbar, show
+
+grid_length = 15
+m1 = 0.6
+m2 = -0.6
+micgeofile = path.join(path.split(acoular.__file__)[0],'xml','array_64.xml')
+datafile = '4S.h5'
+
+mg = acoular.MicGeom( from_file=micgeofile )
+ts = acoular.TimeSamples( name='1S.h5' )
+ps = acoular.PowerSpectra( time_data=ts, block_size=128, window='Hanning' )
+rg = acoular.RectGrid( x_min=-0.6, x_max=0.6, y_min=-0.6, y_max=0.6, z=1.2, \
+increment=(m1-m2)/(grid_length-1))
+st = acoular.SteeringVector( grid = rg, mics=mg )
+bb = acoular.BeamformerBase( freq_data=ps, steer=st )
+pm = bb.synthetic( 8000, 3 )
+Lm = acoular.L_p( pm )
+imshow( Lm.T, origin='lower', vmin=Lm.max()-10, extent=rg.extend(), \
+interpolation='bicubic')
+colorbar()
+figure(2)
+plot(mg.mpos[0],mg.mpos[1],'o')
+axis('equal')
+show()
