@@ -1,0 +1,20 @@
+# Prediction
+
+up = pred_data_gen()
+z1 = model.predict(up[0])
+
+k1 = np.array(up[1])
+z1= np.array(z1.reshape(pred_samples,grid_length,grid_length))
+k1= np.array(k1.reshape(pred_samples,grid_length,grid_length))
+print(k1)
+print(z1)
+
+# Filtering 
+
+z1 = z1.reshape(scanning_grid,1)
+for i in range(scanning_grid):
+ if z1[i] < 0.45:
+  z1[i] = 0
+z1 = z1.reshape(grid_length,grid_length) 
+print(k1)
+print(z1) 
